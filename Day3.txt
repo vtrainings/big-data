@@ -1,0 +1,268 @@
+Stuff done on Day1
+
+1) What is Big Data
+2) What is Hadoop
+3) Use Cases of Hadoop
+4) Architecture of Hadoop [ File Read / File Write ]
+5) Load Cloudera - Some basic examples
+6) File Injestion in to  cloudera - location of the data & metadata
+7) Ubuntu - extracted and configured the .bash_profile
+
+=========================================================>
+
+Stuff done on Day2
+
+1) Finished with the Ubuntu Installation
+2) Checkpointing
+3) Lab2 - txns and custs injestion and checking how the metadata and data gets changed
+4) Understanding the MR Flow
+5) Cloudera - teragen, terasort, wordcount
+6) Wrote the WC example in eclipse in windows, created the jar file, moved the jar to programs and executed the code
+7) Understood the MR Code
+
+========================================>
+
+Hadoop Definitive Guide
+
+Chapter1 - 2 --> for all roles
+Chapter 3 - 8 --> Map Reduce roles
+Chapter 9 - 10 --> Admin folks  [ Hadoop Operations ] 
+Chapter 11 - 15 --> Analysts
+
+http://www.cloudera.com/training/certification.html
+http://hortonworks.com/training/
+
+===================================================>
+
+1) Make a change in the map function of your existing WordCountTesting code.
+
+	System.out.println(key+"  "+value ); --> 
+
+	It will get printed out in 2 locaton
+
+	a) userlogs of the winscp - on the client side
+	b) view this in the tasktracker page also
+
+===============================> What should be clear by now
+
+1) Big Data & its use cases
+2) HDFS and its architecture
+3) Map Reduce and it working along with debugging.
+
+=================> Eco-Systems --> Hadoop is only HDFS & Map Reduce
+
+What is the limitations of Map Reduce
+
+1) Needs a programming language called Java.
+2) It is not appropriate for Ad-Hoc Query
+
+2009 --> Jeff Hammerbasch --> Facebook --> Data Problems - Size -->
+
+Only Structured Data --> SQL Querying 
+--> 11 Developers --> Create a compiler which will convert sql queries in to Map Reduce. That  Project is called as hive now.
+
+SQL has finite or infinities queries --> Finite Queries
+
+ 
+Client	--> 	Database	[HDFS mapping is at the profile--> HDFS
+ [ Cluster ] 
+
+Client	-->	Nothing	-->	HDFS
+
+
+We are now in the hive shell:--
+
+1) show databases; --> There will be a default database for the first time.
+2) show tables         --> No tables are present for the first time.
+
+How to find out which database is used? Connection-String --> hive-site.xml
+
+Let us go ahead the configure hive for usage:- hive-site.xml --> 
+
+/home/notroot --> hive --> loaded derby into memory - create a database, create a table, load rows into the table.	exit; Derby will persist the inmemory to a folder called - metastore_db at the location where hive was started.
+
+/home/notroot/lab --> hive --> Is this the same instance of hive or a different instance? Going to be a different instance.
+
+How to ensure that it will always point to the same database irrespective of whereever you start hive? Change the connection string.
+
+exit; is the way to get out of hive.
+
+get into hive again? Check if there are any changes now?
+
+show databases;
+show tables;
+
+============================> Hive & HDFS
+
+Hive			HDFS
+
+database			mapped - folder --> /user/hive/warehouse/Name.db
+
+table
+ --> Internal [ default ]	folder inside the database folder
+ --> External		any folder in HDFS
+
+rows			files within the table folder
+
+============================>
+
+1) create a database --> create database retail;
+
+	HDFS --> /user/hive/warehouse/retail.db
+	Hive    --> show databases
+
+2) use retail; --> changing the database
+
+3) create table --> txnrecords - 9 cols.
+
+	HDFS --> /user/hive/warehouse/retail.db/txnrecords
+	Hive    --> show tables.
+
+4) describe table
+
+5) load records
+
+6) select count(*) from txnrecords;
+
+=========================================>
+Difference between Internal & External Table
+
+1] Location of the data
+Int: /user/hive/warehouse/databasename.db/tablename
+Ext: Anywhere in HDFS
+
+2) Is load required?
+Int: Yes
+Ext: No as the data is already present in HDFS
+
+3) Syntax difference
+Int: Normal Syntax
+Ext: external word should be present before the table and the data location should be given at the time of table create itself.
+
+4) Drop table TableName?
+Int: Schema and Data will be dropped.
+Ext: Only schema will be deleted and the data will still be present in HDFS.
+
+5) Who has permission on the data location in HDFS?
+Int: hive
+Ext: hdfs
+
+============================> Hands on in External Table
+
+1) create a new folder in hdfs called hivetable. !hadoop fs -mkdir /hivetable;
+2) Move the txns data into hivetable folder. !hadoop fs -cp /input/txns /hivetable
+3) create the hive table as per the syntax
+4) select count(*) from externaltxnrecords; Will this take the same time, more time or less time that internal table? --> same time
+5) describe formatted externaltxnrecords; This will print the additional hive attributes also.
+	Look for Table Type: EXTERNAL [ MANAGED ]
+6) drop table externaltxnrecords;
+	a) show tables; No
+	b) !hadoop fs -ls /hivetable; Will i see the data still? YES
+
+============================> Partitioning & Bucketing
+
+Partitioning? Typically doing horizontal splitting of data in a table into new entities based on some column value.
+
+How to decide which column will you partition the table on? The column which is most commonly used in the where clause?
+
+Customer Table:
+
+1) select * from txnrecords limit 10; Will there be a job? No
+
+2) select txnno, state from txnrecords limit 10; will there be a job? Yes. Only mapper and no reducer as there is no aggregation
+
+3) select * from txnrecords where category= 'Dancing'; Will there be a job? Only Mapper. Will it a full table scan. YES
+
+	How to improve performance of the query? Partition the column based on the category values.
+
+--> In RDBMS where partitioning is physical or logical at the disk level? Physical
+
+Let us assume that i have partitioned the table on the category column and after that i fire:-
+
+select * from txnrecords where category= 'Dancing'; Will there be a job. No  as it is simply a folder scan.
+
+txnrecords table: 1000000 records
+
+i partition the table on the category column in a seperate table called txnrecsbycat
+
+In the txnrecsbycat, there will be seperate folders based on the unique values of the category column. The total records in the txnrecsbycat will also be 1000000 
+
+We insert some new values into the txnrecords table.
+
+	Will it automatically go in to txnrecsbycat? No. It has to be loaded into the txnrecsbycat so that it will go to the appropriate category folder.
+
+================> Bucketing is for sampling of data. Hive only gives appropirate buckets [samples ] of data as requested.
+
+Customer Table: 1000 rows
+Product column: 40 unique values
+
+Now we want 10 buckets of data samples based on the product column. So how is 1000 rows, having 40 unique values, going to be distributed across 10 buckets?
+
+Formula:(hash of the bucketed column value) % no of buckets -->which bucket a records go
+
+1) Will all the values of a similar product [ Nike Shoes ] be in 1 bucket? YES
+2) Can a bucket have more than 1 product? YES
+3) Can a bucket have no product at all? YES
+
+Data range: 1,2,3,4,5,6,7,8,9
+Buckets: 3
+
+B1 --> 3,6,9
+B2 --> 1,4,7
+B3 --> 2,5,8
+============================>
+
+
+How to spool the contents of query into a folder in Linux
+
+============================================> Pig
+
+Why Pig? 
+
+--> It can devour all types of data: Structured & Semi-Structured, but not unstructured.
+
+Limitations of Hive
+
+1) Works only with Structured data
+2) No pure client component. We need hadoop to be present on client for hive to work. 
+
+Pig was developed by Yahoo in 2007 and is a type of scripting language called Pig Latin.
+
+Structured Data --> SQL, Pig, Map Reduce
+Semi Structured Data --> Pig, Map Reduce
+UnStructured Data --> only Map Reduce
+
+==================================>
+
+input1 = load '/input/words' as (line:chararray);
+dump input1;
+words = foreach input1 generate FLATTEN(TOKENIZE(line)) as word;
+dump words;
+word_groups = group words by word;
+describe word_groups; --> focus on the concept of bag
+dump word_groups;
+word_count = foreach word_groups generate group,COUNT(words);
+dump word_count;
+ordered_word_count = order word_count by group desc;
+store ordered_word_count into '/output/wordspig';
+
+=============================>
+
+ETL Example using Pig
+
+Dataset: custs [5 ], txns [ 9 ] 
+Business Result: Find the top 100 customers who have purchased the most from the dataset and we need the following columns in the result
+
+	custid	fname	lname	age	profession		totalamtPurchased
+==============================>
+
+
+
+
+
+
+
+
+
+
+

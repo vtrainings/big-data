@@ -1,0 +1,327 @@
+
+Java Basics: https://www.youtube.com/watch?v=Hl-zzrqQoSE&list=PLFE2CE09D83EE3E28
+
+Shared Location: \\172.16.109.23\Training Share
+
+The password for the pdf files is hdp
+
+===================================>
+
+2 Generations of Hadoop
+
+1) Hadoop1 --> Release 0.2x and 1.x
+2) Hadoop2 [ Oct15, 2013 ] --> Release 2.2x onwards
+
+Big Data: Storage and Processing [ Analysis + Analytics ] 
+
+Housekeeping Stuff
+
+9.30~ 9.40 --> 11.45
+15 min break
+12 to 1.30
+45 min break
+2.15 to 3.30~ 3.35
+15 min break
+5.30 - Wrap up time
+
+======================================>
+
+Personal laptops --> 64 bit processor, 4 GB RAM
+
+Big Data
+
+1) Volume of data --> sources of data is increasing --> Yotta Bytes now.
+
+2) Variety of data
+	
+ - structured --> rows and cols and has a schema
+ - semi - structured --> Textual - Comments, feedbacks, emails, logs
+ - unstructured --> Audio, Video, Images
+
+DWH		: OBIEE, Teradata, Neteeza
+ETL		: Information, Datastage
+BI		: Sap BO, Cognos,MicroStrategy, SSIS/ SSRS
+Visualization	: Tableau, QlikView
+
+3)Velocity: Speed of Data Arrival. -> Fraud Analytics, Anti Money Laundering
+
+==============================>
+
+Big data is a term for data sets that are so large or complex that traditional data processing applications are inadequate. Challenges include analysis, capture, data curation, search, sharing, storage, transfer, visualization, querying, updating and information privacy.
+
+2 Traditional Data Processing Applications
+
+1) Relational Databases
+2) Data Warehouse - ETL
+
+Hadoop? 
+
+Framework for storage [ HDFS Hadoop Distributed File System] and analysis of data. [ Map Reduce ]
+
+Apache Hadoop is an open-source software framework for distributed storage and distributed processing of very large data sets on computer clusters built from commodity hardware.
+
+Spark: Is lightening fast cluster computing and is a competitor to Map Reduce.
+
+2003 --> GFS - Google File System --> Sanjay Ghemawat 
+2004 --> MR - Map Reduce --> Jeff Dean
+2006 --> Doug Cutting --> gave it ASF [ Apache Software Foundation ]
+2007 --> Yahoo started using Hadoop --> 40000 hadoop nodes. Biggest Cluster having 4500 Nodes.
+2007 --> Eco System component called Pig [ Scripting Sytle Analysis on data in HDFS ] 
+2009 --> Hive was developed by Facebook [ SQL Style Analysis on data in HDFS ]
+2013 --> Hadoop2  [ YARN ] Yet Another Resource Negotiator
+
+Note: Both the white papers are shared in the AdditionalMaterials folder in Day1.
+
+Pre-Requisited before starting with any image:
+
+1) Network should be NAT
+2) Memory --> 1/2 of your system memory [ 4 GB ]
+
+I have provided 2 images
+
+a) Cloudera - Hadoop1 --> in which all deamons [ background processes ] gets started when the system boots up. No installation required.
+
+b) Ubuntu - Which we will use for Hadoop1 and Hadoop2 --> we will start from scratch and extract and configure hadoop.
+
+OLTP			v/s		OLAP
+
+Transaction Processing			Analytical Processing
+sub second response - realtime			batch processing - 6 - 8 hours
+RDBMS					DWH [ cubes, fact, dimensions ]
+NoSql					Hadoop
+
+Examples of NoSQL
+
+facebook messages
+flipkart
+mongodb
+netflix
+
+=======================> Post Morning Tea
+
+Loaded the Cloudera Image in to VMWare.
+
+The popular Distributions of Hadoop:
+
+
+1) Cloudera
+2) Hortonworks [ Ex - Yahoo ]
+3) IBM Big Insights
+4) Dell [ ex EMC ] Pivotal
+5) MapR [ has customized HDFS to behave like NFS ] 
+6) Microsoft
+
+Deployment Techniques of Hadoop
+
+1) On Premise
+
+	a) Physical	
+	b) Virtual [ Hypervisor ] 
+
+2) On the cloud [ AWS, Azure, Rackspace ] 
+
+Use Cases of Hadoop:-
+
+1) https://wiki.apache.org/hadoop/PoweredBy
+2) http://www.cloudera.com/customers.html
+3) https://www.mapr.com/customers/industry
+4) http://hortonworks.com/customers/
+5) obama big data
+6) http://hadoopilluminated.com/hadoop_illuminated/Hadoop_Use_Cases.html
+7) http://timesofindia.indiatimes.com/delhi-elections-2015/top-stories/Delhi-elections-2015-How-a-small-IIT-B-team-shaped-AAPs-Delhi-poll-campaign/articleshow/46173477.cms
+
+========================================> HDFS Architecture
+9-node cluster
+
+1) Master - Slave Arch--> Master [ Server Grade ] , Slaves [ Commodity Machines ]
+
+2) Block Size --> 64MB [ Huge Block size so that the disk IO is reduced.
+http://stackoverflow.com/questions/19473772/data-block-size-in-hdfs-why-64mb
+
+3) All the modules in Hadoop are designed with a fundamental assumption that hardware failures are common and should be automatically handled by the framework.
+
+   Replication : Every block is copied for a total of 3 times in HDFS.
+
+Client A: Sample - 100 MB
+ 				Master
+
+1	2	3	4	5	6	7	8	9
+64	36		64			36	36	64
+
+							    client B -
+					Read Pipeline	[9,4,1]
+							[8,7,2]
+1) The client will communiate with the Master [ as client has hadoop on its local side and will be configuration which will tell the IP of the master ]
+2) The response of the master will be:- Write pipe line information to the client.
+	a) Master will have to identify on which nodes the client can write the data. Every 3 sec there is a heart beat from the slaves to the master
+.
+	b) 	64 [ 1,4,9]
+		36 [ 2,7,8]
+3) How will the first node for a block decided? Based on the network proximity between client and the slaves.
+4) How are the other nodes for a block decided? It is based on load balancing or availability.
+5) Who will split the data into 64 and 36 MB blocks? Hadoop on the client side
+6) Will the write to node1 and node 2 be in parallel. YES
+7) When will replication start? Immediately when writing has started on Node 1 and 2. Node1 will give it to Node4 and node4 will give it to node 9.
+
+Replication is at the file Level Granurality --> 
+
+=================> Post Lunch --> Failures within Hadoop
+Client A:
+				Master [ Master ] 
+1	2	3	4	5	6	7	8	9
+64	36		64			36	36	64
+
+A] While Writing 
+
+ --> Main Nodes [ 1,2 ] --> After 60MB of data is written on Node1, it goes down.
+
+1) Will client be aware of the failure? YES.
+2) What should the client do then? Retry --> Will the client have to resubmit the whole 100 MB file? YES
+3) What will happen to the 36MB of data already written and replicated and the 60MB of data written and replicated? These are zombied data and the admin will have to explicitly remove them.
+
+ --> Replicated Nodes --> After 60MB of data is written on Node9, it goes down.
+1) Will client be aware of the failure? No
+2) What will the master do? Reassign another node to take care of the 64 MB block in place of Node 9. Nothing to do done by the Hadoop Administrator.
+
+B] After Writing : Any Node goes down.
+
+1) Will the Hadoop Administrator have to do any thing [ other than fixing the system ]?  The framework will ensure that all the blocks on the node that failed are properly replicated to other nodes ensuring that the data is load balanced.
+
+Once a node goes down and does not rejoin the cluster in 10 minutes, it is considered as a black listed node and no other data processing work will be given to that node. 
+
+===============================================>
+					Hadoop1		Hadoop2
+			HDFS		MapReduce	YARN
+
+Master			NameNode	JobTracker	ResourceManager
+
+Slave			DataNode		TaskTracker	NodeManager
+
+			SecondaryNameNode
+			[Backup Node ]
+
+Slide No 61 and check if all deamons are running for you.
+
+================================================>
+
+Slide No: 52 and 53 should have been done by now.
+
+jps : java process status - ps -ef | grep java
+
+Slide No 54: Talks about the port number for different deamons. Try it out
+
+==================================================>
+
+The default Embedded Web server gets starts --> Apache Jetty [This got started when hadoop services was started ]
+
+--> /etc/init.d --> sh files which will gets kicked off when the system boots up.
+
+8020 is the NN RPC port no, where as 50070 is the http port no.
+
+So the deployment mode that we have used in the Cloudera VM is Pseudo Cluster Deployment wherein there are multiple deamons running on the same machine. This is a cluster simulation in one machine.
+
+----------------------------------------> View the Directory locations
+
+1) NN Storage: /var/lib/hadoop-0.20/cache/hadoop/dfs/name/current
+
+	fsimage	1667
+	edits	      4	These 2 components constitute the NN metadata
+
+2) DN Storage: Note. The permission to view the DN storage is only with the hdfs user, so we will have to log in using hdfs user.
+
+	/var/lib/hadoop-0.20/cache/hdfs/dfs/data/current
+
+	Inside that you will see 1 blk file and one for .meta [ checksum ] for that block.
+
+==================================>
+
+fsimage is the snapshot of the file system at a point of time.
+edits are the logs of transactions that is happening in the cluster.
+
+Checkpoint:- edits are applied or saved to the snapshot and edits go back to 4k and size of fsimage increased.
+
+File Injestion in to HDFS: this execise should be done as the cloudera user.
+
+1) create a new file in /home/cloudera --> gedit sample
+2) put some contents into this file
+3) push the file into HDFS
+	hadoop fs --> press enter, it will display all the linux commands that is possible in HDFS.
+	hadoop fs -copyFromLocal sample /
+4) How to check if file is copied?
+	hadoop fs -ls /	OR
+	browse the file system
+	Note: Remember the size of the file.
+5) Now what will be the change in the metadata and data locations?
+	metadata:-
+		the edits size will increased to 1.1MB
+		the fsimage size will be the same
+	data:-
+		a new blk file will be created [ same as the size of the file ] 
+		a .meta file will also be created
+6) How to check the contents of the file in hdfs'
+	hadoop fs -cat /sample
+7) How to check teh contents of the blk file
+	cat blk_XXXXXXX
+
+===========================================>
+
+We are now going to load the ubuntu image, in which we will extract and configure hadoop right from the beginning.
+
+1) Power off the Cloudera Image
+2) Load the Ubuntu Image
+3) Check the status of the ubuntu image [ suspended or powered off ]
+4) Power off the image
+5) Change the settings to ensure the 2 things are done: memory & Network Adapter 
+6) Open the document called Hadoop_setup.pdf from the setup documents folder in the ToShare folder.
+7) logged into the system using notroot & hadoop123 as the password
+8) The folder structure is as under:-
+	downloads --> which has all the tar files needed for this course
+	software --> extracted copies of the tar files should be in this folder
+	hdfs - empty
+	mapred - empty
+	data --> sample data files [ txns - 85MB ] ls -h -l
+	programs - empty
+9) Install winscp in windows and login via the IP
+10) Start Putty and login via the IP
+11) extract hadoop in to the software folder
+12) make changes in the .bash_profile
+13) execute the .bash_profile
+14) check for java -version
+15) check for hadoop version
+
+Pre-Req for Day2: Watch the video: Map Reduce with Playing cards.
+
+=========================================================>
+
+Tomorrow we will be doing
+
+1) Configuring the XML files
+2) formatting the namenode
+3) making changes in the hadoop-env.sh file
+4) starting the services
+
+	Now hadoop will be ready for getting files uploaded to it
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

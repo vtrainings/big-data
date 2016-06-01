@@ -1,0 +1,301 @@
+Stuff done on Day1
+
+1) What is Big Data
+2) What is Hadoop
+3) Use Cases of Hadoop
+4) Architecture of Hadoop [ File Read / File Write ]
+5) Load Cloudera - Some basic examples
+6) File Injestion in to Cloudera - location of the data & metadata
+7) Ubuntu - extracted and configured the .bash_profile
+
+=========================================================>
+
+1) Checkpointing -->  applying the edits on the fsimage.
+
+	edits --> log of what happened in the cluster
+	fsimage --> snapshot at a point of time
+
+HDFS Architecture: **https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html
+
+Where is the metadata of the cluster stored?
+
+1) Is in the main memory of the NN		PLUS
+2) a copy is stored in fsimage and edits.
+
+Yesterday we loaded a file called sample in to your Cloudera Image
+	--> initially it was in edits
+	--> when checkpointing happened, it got applied to fsimage and edits went back to 4k
+
+Today morning when we start the cluster: -
+
+	--> load the fsimage and edits into the memory. [if checkpointing had not happened  ] . It will then apply the edits into the fsimage and create a new fsimage and truncate the edits back to 4k.
+
+Who does the periodic checkpointing -->It is the secondary Namenode.
+
+**https://hadoop.apache.org/docs/r2.4.1/hadoop-project-dist/hadoop-hdfs/HdfsUserGuide.html#Secondary_NameNode
+
+Right now some data in fsimage -->
+
+I add a new file to HDFS --> Where will this entry be recorded? 
+	a) In the main memory of the NN
+	b) A entry is also recorded in the edits file of the NN
+
+The SNN is a checkpointing node as well a Backup node incase if the NN goes down.
+
+If we need a usecase where analysis have to be Real time, then we should do a Active - Active mode which is possible in Hadoop2.
+
+===> During the checkpointing, the SNN copies the fsimage and edits from NN to its local system. Then it loads the fsimage into memory and applies the edits on the fsimage and truncates the edits. Then it will copy the fsimage to the NN again.
+
+NN --> metadata
+	What is present in the metadata
+
+	a) how many files are present in HDFS
+	b) For each file how many blocks are required plus replication factor
+	c) Where each block is in which node.
+
+Where is the metadata in a cluster
+
+1) NN
+2) SNN PLUS we also store metadata in SAN also. Note hadoop will not automatically bring the metadata from SAN.
+
+==============================================>
+
+
+1) Start the Ubuntu Image
+2) Login into Putty and winscp
+
+How is processing done in Map Reduce
+
+1) Divide & Conquer Algorithmn
+2) The data is first mapped --> similar shapes are brought together
+3) The data is then reduced --> aggregation
+
+=====================> Continue with the setup
+
+16) we will create 3 directories in lab/hdfs folder
+	namenodep --> will store the metadata
+	datan1 --> will store the data [ blk file and the .meta [contains the checksums] ]
+	checkp --> will contain the backup of the metadata
+
+17) we will give write permission to only the owner -->chmod 755 datan1
+18) we will create 2 directories in lab/mapred
+	local1 --> this will contain the intermediate data from the map to be picked by the reduce
+	system --> this will contain the  lookupdata / reference data for the analysis. Find out the empname and deptname of all employees in the emp table. So here the dept table is called the lookuptable / reference table.
+
+19) ----------> Configuration of XML files
+
+	There are 3 xml files for 3 components which needs to be configured for Hadoop
+
+				main xml file	    Reference xml file
+				XXX-site.xml	    XXX-default.xml
+location				/conf		    /src/XXX/
+
+1) core component			/conf/core-site.xml	   /src/core/core-default.xml
+
+2) hdfs component			/conf/hdfs-site.xml	   /src/hdfs/hdfs-default.xml
+
+3) mapred component
+
+===========================>
+5 node cluster --> How many physical machines should i have
+
+	Master	{	NN	SNN	JT	}
+
+	Slaves	{	DN+TT	DN+TT	DN+TT	DN+TT	DN+TT	}
+
+===========================>
+
+core-site.xml [2]	-->fs.default.name < IP Address of the NN machine
+	final --> true so that no one can change the value after the cluster is started up
+
+	    	--> fs.checkpoint.dir < Location of the Checkpoint directory
+
+hdfs-site.xml [3] 	--> dfs.data.dir < Location of the Data directory
+		--> dfs.replication
+		--> dfs.name.dir < Location of the Name directory
+	          	    
+mapred-site.xml[5]	--> mapred.job.tracker
+
+How much memory should 1 single node cluster have?
+
+5 principal daemons	--> 5 GB
+
+3 map jvm		--> 1.2 GB
+3 reduce jvm	--> 1.2 GB
+
+Total Min --> 7.4 GB --> Memory Swapping
+=========================================>
+
+20) Formatting the NN --> It will create the default fsimage and edits.
+
+21) setup java home in hadoop-env.sh file
+
+22) start the dfs and mapred services
+
+==========================================>
+
+Lab2: 
+
+	We created 2 directories
+	We stored txns and custs file in the input of HDFS
+	We saw how the blocks are created in lab/hdfs/datan1/current directory
+
+================> Let us talk about Map Reduce
+
+What is Map Reduce? It is a programming framework for analysis of data in HDFS in which we have map, shuffle and reduce phases.
+
+Came from a functional programming language called LISP.
+
+3 pre-req information needed before starting with any Processing?
+
+1) dataset that needs to be analysed
+2) What type of analysis is needed
+3) Identify what is a record? By Default it is always a new line \n
+	Dataset1: How are you
+		I am fine		: How many records? 2
+
+	Dataset2: Venkat	
+		K
+		Krishnan
+		Dhaval
+		D
+		Joshi		: How many records? 
+
+==============================> Any map reduce process would have these steps
+
+1) write a map function: identify what you want from a record
+
+2) shuffle logic: bring all values of similar keys together
+
+3) write the reduce logic: perfom some aggregation
+
+===============================> Map Reduce Flow
+
+		1	2	3	4	5
+sample			64		36
+
+M1
+M2
+M3
+		Intermediate data is stored in the local1 directory
+		Which Reduce JVM can be used for aggregation. ANY
+
+R1				YES
+R2
+R3
+
+============> 6  Phases In Map Reduce
+Everything in map reduce is key - value
+
+1) Input Phase: This is a block that we are considering
+
+2) Splitting phase: There are 2 types of splitting in Hadoop
+
+	Block Split:	Writing	Physical
+
+	Record Split
+	InputSplit	:	Reading	Logical
+
+	Splitting happens in the Map JVM of the node where the data is stored.
+
+3) Mapping phase: The output of the splitting phase [ k1,v1 ] goes to the mapping phase.
+
+	In the map phase, we write the logic of what needs to be picked from a record and then write it to the local1 directory
+
+4) Shuffling Phase: Who controls shuffling? Job Tracker
+	The actual work is done by the reduce jvm which is nominated by the JT
+
+	Any Reducer JVM can be nominated by the JT and every reduce JVM has 2 functionalities
+	a) To poll the intermediate data from the local directory where the mapper was executed.
+
+5) Reduce Phase:
+
+	b) The second is to call the actual reduce function.
+
+6) Output Phase:
+
+	The output will be again stored in HDFS
+
+---------------------- Post Lunch
+
+1) stop-all.sh and confirm via jps that all processes have stopped
+
+2) Open Cloudera VM
+
+3) Go to Slide 55 of HDFS.pdf
+
+	We will execute 3 seperate Map Reduce codes in Cloudera and test and then come back to Windows and Ubuntu to try our WordCount Example
+
+The 2 benchmarking applications that is in built with Hadoop are called teragen and terasort.
+
+The first Map Reduce example execution: hadoop jar hadoop-examples.jar
+
+TeraSort is one of Hadoop’s widely used benchmarks. Hadoop’s distribution contains both the input generator and sorting implementations: the TeraGen generates the input and TeraSort conducts the sorting.
+
+hadoop jar hadoop-examples.jar teragen 100000 /nomura [ 100000 is the number of records of 100 byte each that should be generated and /nomura is the directory which will be created by the MR process and that directory should not be present before ]
+
+It start with a Map Reduce with 2 maps, displays the job id and shows the progress of the job. It also displays the counters [ statistical information about the job ]
+
+a) How to find out whether the job is successful or not? 
+	hadoop fs -ls /nomura or Browse the file system
+b) What else will be in the output folder
+	_SUCCESS file	_logs directory 	multiple part files [ results ]- part-00000
+c) logic of the 100 byte record created
+
+1) The first 10 bytes are keys. They are randomly generated alpha numeric special charac combination
+2) The next 10 bytes are for line number starting from 0 and right justified. 
+3) The next 70 bytes are capital alphabets which each alpha repeating 10 times [ A - G]
+4) The next 8 bytes will be the next capital alpha in the sequence - H
+5) The last 2 bytes will be CRLF --> Carriage Return Line Feed.
+
+-------------< hadoop jar hadoop-examples.jar terasort /nomura /sorted
+This files will be sorted lexographically based on the keys.
+
+How much time it took for completing this job: Visit job tracker page and note down.
+
+=========================> Let us execute the WordCount Example - slide 69
+
+1) sample file is created in /home/cloudera
+2) The file is moved to hdfs under the / directory
+3) execute the jar file with the wordcount application
+4) check the contents of the jar file.
+
+Access Pattern in Hadoop --> WORM - Write Once Read Many
+
+-----------------> Finished with the 3 examples in cloudera. We will now setup the dev environment of hadoop in windows
+
+1) check if java is present --> program files & program files[x86] to see if there is a folder called java. If not install jdk 1.8
+
+2) extract eclipse
+
+3) Lab No 3 --> Code the Word Count Example.
+
+2 forms of coding in Map Reduce
+
+1) Tight Coupling --> Inner Classes
+2) Loose Coupling --> Normal Classes
+
+1) Why is a mapper class static
+2) What is Generics --> Type Safety at compile time
+3) What is Configuration class
+4) Life cycle methods of mapper and reducer
+5) What is Generic Options Parser
+6) How to submit a code to Hadoop
+
+We will try the System.out.println first things in the morning.
+
+stop-all-sh --> ensure that all daemons are stopped. Check via jps
+
+---------------------------------------------------------->
+
+Pre-Requisites for tomorrow
+
+First 4 pages of the Hive and Pig Chapter from the Hadoop Definitive Guide.
+
+
+
+
+
+
+
+
